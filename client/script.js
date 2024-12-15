@@ -138,6 +138,5 @@ async function loadHistory() {
 // Добавляем обработчик для кнопки "Просмотреть историю"
 document.getElementById('history-button').addEventListener('click', loadHistory);
 
-
 // Загружаем вопросы при загрузке страницы
 window.onload = loadQuestions;
