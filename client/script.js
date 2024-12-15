@@ -1,91 +1,104 @@
-const apiUrl = 'http://localhost:3000'; // URL сервера
+const apiUrl = 'http://localhost:3000';
 
 // Функция для загрузки вопросов
 async function loadQuestions() {
-  const response = await fetch(`${apiUrl}/questions`);
-  const questions = await response.json();
+  try {
+    const response = await fetch(`${apiUrl}/questions`);
+    if (!response.ok) throw new Error("Ошибка загрузки вопросов с сервера");
 
-  const container = document.getElementById('test-container');
-  container.innerHTML = '';
+    const questions = await response.json();
+    console.log("Полученные вопросы:", questions);
 
-  questions.forEach(question => {
-    const questionDiv = document.createElement('div');
-    questionDiv.className = 'question';
+    const container = document.getElementById('test-container');
+    container.innerHTML = '';
 
-    const questionText = document.createElement('p');
-    questionText.textContent = question.question;
-    questionDiv.appendChild(questionText);
+    questions.forEach(question => {
+      const questionDiv = document.createElement('div');
+      questionDiv.className = 'question';
+      questionDiv.dataset.questionId = question.id; // Добавляем атрибут questionId
 
-    const answersList = document.createElement('ul');
-    question.answers.forEach(answer => {
-      const answerItem = document.createElement('li');
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.value = answer.id;
-      checkbox.dataset.questionId = question.id;
+      const questionText = document.createElement('p');
+      questionText.textContent = question.question;
 
-      const label = document.createElement('label');
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(answer.answer));
-      answerItem.appendChild(label);
+      const answersList = document.createElement('ul');
+      question.answers.forEach(answer => {
+        const answerItem = document.createElement('li');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = answer.id;
 
-      answersList.appendChild(answerItem);
+        const label = document.createElement('label');
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(answer.answer));
+
+        answerItem.appendChild(label);
+        answersList.appendChild(answerItem);
+      });
+
+      questionDiv.appendChild(questionText);
+      questionDiv.appendChild(answersList);
+      container.appendChild(questionDiv);
     });
-
-    questionDiv.appendChild(answersList);
-    container.appendChild(questionDiv);
-  });
+  } catch (error) {
+    console.error("Ошибка загрузки вопросов:", error.message);
+    alert("Не удалось загрузить вопросы. Проверьте сервер.");
+  }
 }
 
-// Обработчик для отправки ответов
+// Функция для отправки ответов
 document.getElementById('submit-button').addEventListener('click', async () => {
-  const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-  const answers = [];
+  try {
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    const answers = [];
 
-  checkboxes.forEach(checkbox => {
-    const questionId = parseInt(checkbox.dataset.questionId);
-    if (!answers.find(a => a.questionId === questionId)) {
-      answers.push({ questionId, selectedAnswers: [] });
+    checkboxes.forEach(checkbox => {
+      const questionId = checkbox.closest('.question').dataset.questionId;
+      if (!questionId) return;
+
+      let answer = answers.find(a => a.questionId === parseInt(questionId));
+      if (!answer) {
+        answer = { questionId: parseInt(questionId), selectedAnswers: [] };
+        answers.push(answer);
+      }
+      if (checkbox.checked) {
+        answer.selectedAnswers.push(parseInt(checkbox.value));
+      }
+    });
+
+    console.log("Отправляемые ответы:", answers);
+
+    const response = await fetch(`${apiUrl}/submit-answers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers })
+    });
+
+    if (!response.ok) throw new Error("Ошибка при отправке ответов");
+
+    const result = await response.json();
+    console.log("Полученные результаты:", result);
+
+    const resultContainer = document.getElementById('result-container');
+    resultContainer.innerHTML = '';
+
+    if (result.incomplete) {
+      resultContainer.innerHTML = '<p class="warning">Тест не завершен. Ответьте на все вопросы.</p>';
+      return;
     }
 
-    if (checkbox.checked) {
-      const answer = answers.find(a => a.questionId === questionId);
-      answer.selectedAnswers.push(parseInt(checkbox.value));
-    }
-  });
-
-  const response = await fetch(`${apiUrl}/submit-answers`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ answers })
-  });
-
-  const result = await response.json();
-  const resultContainer = document.getElementById('result-container');
-  resultContainer.innerHTML = ''; // Очищаем контейнер перед выводом
-
-  // Если тест не завершен, выводим сообщение и ничего больше
-  if (result.incomplete) {
-    const warningMessage = document.createElement('div');
-    warningMessage.style.color = 'red';
-    warningMessage.style.fontWeight = 'bold';
-    warningMessage.style.marginBottom = '20px';
-    warningMessage.textContent = "Тест не закончен, просим продолжить прохождение";
-    resultContainer.appendChild(warningMessage);
-    return; // Завершаем обработку
+    resultContainer.innerHTML += '<h2>Результаты</h2>';
+    result.results.forEach(r => {
+      const resultItem = document.createElement('div');
+      resultItem.className = 'result-item';
+      resultItem.innerHTML = `
+        <p>Вопрос ${r.questionId}: ${r.correct ? 'Верно' : 'Неверно'}</p>
+      `;
+      resultContainer.appendChild(resultItem);
+    });
+  } catch (error) {
+    console.error("Ошибка при отправке данных:", error.message);
+    alert("Произошла ошибка при отправке данных на сервер.");
   }
-
-  // Если тест завершен, выводим результаты
-  resultContainer.innerHTML += '<h2>Результаты</h2>';
-  result.results.forEach(r => {
-    const resultItem = document.createElement('div');
-    resultItem.className = 'result-item';
-    resultItem.innerHTML = `
-      <p>Вопрос ${r.questionId}: ${r.correct ? 'Верно' : 'Неверно'}</p>
-      <p><strong>Правильные ответы:</strong> ${r.correctAnswers.join(', ')}</p>
-    `;
-    resultContainer.appendChild(resultItem);
-  });
 });
 
 // Загружаем вопросы при загрузке страницы

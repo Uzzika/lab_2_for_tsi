@@ -132,14 +132,20 @@ app.get('/questions', (req, res) => {
 // Отправка ответов
 app.post('/submit-answers', (req, res) => {
   const { answers } = req.body;
+
   const results = answers.map(userAnswer => {
     const question = questions.find(q => q.id === userAnswer.questionId);
-    if (!question) return { questionId: userAnswer.questionId, correct: false };
+    if (!question) return { questionId: userAnswer.questionId, correct: false, correctAnswers: [] };
 
     const correctAnswers = question.answers.filter(a => a.correct).map(a => a.id);
     const isCorrect =
       JSON.stringify(correctAnswers.sort()) === JSON.stringify(userAnswer.selectedAnswers.sort());
-    return { questionId: userAnswer.questionId, correct: isCorrect };
+
+    return {
+      questionId: userAnswer.questionId,
+      correct: isCorrect,
+      correctAnswers: correctAnswers // Добавляем правильные ответы
+    };
   });
 
   if (!req.session.testHistory) {
