@@ -156,9 +156,14 @@ app.post('/submit-answers', (req, res) => {
 });
 
 // Получение истории
+// Получение истории тестов
 app.get('/history', (req, res) => {
-  res.json(req.session.testHistory || []);
+  if (!req.session.testHistory) {
+    return res.json({ history: [] }); // Возвращаем пустой массив, если истории нет
+  }
+  res.json({ history: req.session.testHistory });
 });
+
 
 // Запуск сервера
 app.listen(PORT, () => {

@@ -101,5 +101,43 @@ document.getElementById('submit-button').addEventListener('click', async () => {
   }
 });
 
+// Функция для загрузки истории тестов
+async function loadHistory() {
+  try {
+    const response = await fetch(`${apiUrl}/history`);
+    if (!response.ok) throw new Error("Ошибка загрузки истории тестов");
+
+    const data = await response.json();
+    console.log("История тестов:", data.history);
+
+    const historyContainer = document.getElementById('history-container');
+    historyContainer.innerHTML = '<h2>История тестов</h2>';
+
+    if (data.history.length === 0) {
+      historyContainer.innerHTML += '<p>История тестов пуста.</p>';
+      return;
+    }
+
+    data.history.forEach((test, index) => {
+      const testDiv = document.createElement('div');
+      testDiv.className = 'history-item';
+      testDiv.innerHTML = `
+        <h3>Тест №${index + 1}</h3>
+        ${test.map(result => `
+          <p>Вопрос ${result.questionId}: ${result.correct ? 'Верно' : 'Неверно'}</p>
+        `).join('')}
+      `;
+      historyContainer.appendChild(testDiv);
+    });
+  } catch (error) {
+    console.error("Ошибка при загрузке истории:", error.message);
+    alert("Не удалось загрузить историю тестов.");
+  }
+}
+
+// Добавляем обработчик для кнопки "Просмотреть историю"
+document.getElementById('history-button').addEventListener('click', loadHistory);
+
+
 // Загружаем вопросы при загрузке страницы
 window.onload = loadQuestions;
